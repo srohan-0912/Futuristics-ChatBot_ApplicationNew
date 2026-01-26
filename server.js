@@ -4,7 +4,22 @@ const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// 🔥 FIX for Render / cloud socket issues
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
+  transports: ["websocket", "polling"]
+});
+
+// CORS headers for normal HTTP requests
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST");
+  next();
+});
 
 app.use(express.static("public"));
 
@@ -23,7 +38,7 @@ io.on("connection", (socket) => {
     const user = users[socket.id];
     if (!user) return;
     io.emit("chat message", {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5), // unique id per message
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       username: user.username,
       avatar: user.avatar,
       text: msg.text,
@@ -42,13 +57,12 @@ io.on("connection", (socket) => {
     io.emit("user list", Object.values(users));
   });
 
-  // Typing indicator events
   socket.on("typing", () => {
     const user = users[socket.id];
     if (!user) return;
-    const username = user.username || "Someone";
-    socket.broadcast.emit("typing", { username });
+    socket.broadcast.emit("typing", { username: user.username || "Someone" });
   });
+
   socket.on("stop typing", () => {
     socket.broadcast.emit("stop typing");
   });
