@@ -1,73 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Futuristic Chat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="style.css" />
-  <script src="/socket.io/socket.io.js"></script>
+<meta charset="UTF-8">
+<title>Futuristic Chat</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="/socket.io/socket.io.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 
 <body>
-  <div class="container">
-    <div class="users">
-      <h2>🟢 Online</h2>
-      <ul id="userList"></ul>
-    </div>
 
-    <div class="chat">
-      <h1>
-        Chat - <span id="displayName"></span>
-        <button onclick="editName()">✏️</button>
-        <button id="themeToggle">🌙</button>
-        <img id="avatarPreview" class="avatar-preview" style="display:none;width:36px;height:36px;border-radius:50%;margin-left:8px;" />
-      </h1>
-
-      <ul id="messages"></ul>
-
-      <div id="typingIndicator"></div>
-
-      <div class="input-area">
-        <input id="messageInput" placeholder="Type your message..." />
-        <button id="sendBtn">Send</button>
-      </div>
-    </div>
+<div class="container">
+  <div class="users">
+    <h2>🟢 Online</h2>
+    <ul id="userList"></ul>
   </div>
 
+  <div class="chat">
+    <h1>
+      Chat - <span id="displayName"></span>
+      <button onclick="editName()">✏️</button>
+      <button id="themeToggle">🌙</button>
+    </h1>
+
+    <div class="chat-main">
+      <ul id="messages"></ul>
+
+      <div id="emojiBar">
+        <span class="emoji">😀</span><span class="emoji">😂</span><span class="emoji">😍</span>
+        <span class="emoji">😎</span><span class="emoji">😭</span><span class="emoji">👍</span>
+        <span class="emoji">🙏</span><span class="emoji">🔥</span><span class="emoji">🎉</span>
+        <span class="emoji">❤️</span>
+      </div>
+    </div>
+
+    <div id="typingIndicator"></div>
+
+    <div class="input-area">
+      <input id="messageInput" placeholder="Type your message..." />
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const socket = io();
+const socket = io(window.location.origin, {
+  transports: ["websocket","polling"]
+});
 
-let username = localStorage.getItem("username") || prompt("Enter your name");
+let username = localStorage.getItem("username");
+if (!username) {
+  username = prompt("Enter your name");
+  localStorage.setItem("username", username);
+}
 document.getElementById("displayName").textContent = username;
-socket.emit("new user", { username, avatar: "" });
+socket.emit("new user",{ username, avatar: "" });
 
-const messages = document.getElementById("messages");
-const input = document.getElementById("messageInput");
-
-document.getElementById("sendBtn").onclick = sendMessage;
-input.addEventListener("keydown", e => e.key === "Enter" && sendMessage());
-
+// Send message
 function sendMessage() {
+  const input = document.getElementById("messageInput");
   if (input.value.trim()) {
     socket.emit("chat message", { text: input.value });
     input.value = "";
   }
 }
 
+document.getElementById("sendBtn").onclick = sendMessage;
+document.getElementById("messageInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") sendMessage();
+});
+
+// Receive messages
 socket.on("chat message", msg => {
   const li = document.createElement("li");
-  li.innerHTML = `<strong>${msg.username}:</strong> ${msg.text}`;
-  messages.appendChild(li);
+  li.textContent = msg.username + ": " + msg.text;
+  document.getElementById("messages").appendChild(li);
   li.scrollIntoView();
 });
 
 socket.on("system message", msg => {
   const li = document.createElement("li");
-  li.style.color = "cyan";
+  li.className = "system";
   li.textContent = msg;
-  messages.appendChild(li);
+  document.getElementById("messages").appendChild(li);
 });
 
+// Online users
 socket.on("user list", users => {
   const ul = document.getElementById("userList");
   ul.innerHTML = "";
@@ -77,6 +95,36 @@ socket.on("user list", users => {
     ul.appendChild(li);
   });
 });
+
+// Emoji insert + send
+document.querySelectorAll(".emoji").forEach(e => {
+  e.onclick = () => {
+    document.getElementById("messageInput").value += e.textContent;
+  };
+  e.ondblclick = () => {
+    socket.emit("chat message", { text: e.textContent });
+  };
+});
+
+// Theme toggle
+const themeToggle = document.getElementById("themeToggle");
+themeToggle.onclick = () => {
+  document.body.classList.toggle("light-theme");
+  themeToggle.textContent =
+    document.body.classList.contains("light-theme") ? "☀️" : "🌙";
+};
+
+// Edit name
+function editName() {
+  const newName = prompt("Enter new name", username);
+  if (newName && newName.trim()) {
+    username = newName.trim();
+    localStorage.setItem("username", username);
+    document.getElementById("displayName").textContent = username;
+    socket.emit("edit name", { username, avatar: "" });
+  }
+}
 </script>
+
 </body>
 </html>
