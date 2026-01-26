@@ -48,11 +48,15 @@ const socket = io(window.location.origin, {
   transports: ["websocket","polling"]
 });
 
-let username = localStorage.getItem("username");
-if (!username) {
+/* 🔽 always ask for name */
+let username = prompt("Enter your name");
+while (!username || !username.trim()) {
   username = prompt("Enter your name");
-  localStorage.setItem("username", username);
 }
+username = username.trim();
+localStorage.setItem("username", username);
+/* 🔼 END */
+
 document.getElementById("displayName").textContent = username;
 socket.emit("new user",{ username, avatar: "" });
 
